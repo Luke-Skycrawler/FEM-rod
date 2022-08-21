@@ -1,12 +1,82 @@
 #include "global.h"
 #include <GL/glut.h>
 #include <iostream>
+// #define _USE_MATH_DEFINES
+// #include <cmath>
+
+// #define _DEBUG_1
+#define M_PI       3.14159265358979323846   // pi
+
 using namespace std;
 using namespace glm;
 static const glm::vec3 g(0.0f,-0.98f,0.0f);
 static float r=ball.ball.radius;
 static const float dh=0.02f,epsilon=1e-6;
 
+void Rod::vertex(){
+  vtxs.resize((N_partition + 1) * (N_diagon + 1));
+  // FIXME: resize?
+  float z = length / N_partition;
+  for(int i=0;i<N_partition+1;i++){
+    vtxs[i * (N_diagon +1)] = Vertex(0.f, i * z, 0.f);
+    for(int j =0;j<N_diagon;j++){
+      int I = i * (N_diagon+1) + j + 1;
+      vtxs[I] = Vertex(cos(j * M_PI * 2 / N_diagon) * radius, i * z, -sin(j * M_PI * 2 / N_diagon) * radius);
+    }
+  }
+  #ifdef _DEBUG_0
+  for(auto v:vtxs){
+    cout << v.x << v.y << v.z<< endl;
+  }
+  #endif
+}
+void Rod::connectivity(){
+  // ttns.resize(3 * N_diagon * N_partition);
+  // FIXME: not default constructor
+  for(int i=0;i<N_partition;i++){
+    for(int j = 0;j<N_diagon;j++){
+      int K = i * (N_diagon +1);
+      int I = K + j + 1;
+      int J = I +1;
+      if (j == N_diagon - 1) J = 1;
+      // int T = I * 3;
+      ttns.push_back(Tetrahedron(vtxs, I, J, K, I + N_diagon + 1));
+      ttns.push_back(Tetrahedron(vtxs, K, I + N_diagon + 1, J + N_diagon + 1, K + N_diagon + 1));
+      ttns.push_back(Tetrahedron(vtxs, J, K, I + N_diagon + 1, J + N_diagon + 1));
+      // ttns[T]    = Tetrahedron(vtxs, I, J, K, I + N_diagon + 1);
+      // ttns[T+ 1] = Tetrahedron(vtxs, K, I + N_diagon + 1, J + N_diagon + 1, K + N_diagon + 1);
+      // ttns[T+ 2] = Tetrahedron(vtxs, J, K, I + N_diagon + 1, J + N_diagon + 1);
+    }
+  }
+  #ifdef _DEBUG_1
+  cout<< ttns.size()<<endl;
+  #endif
+}
+
+void Rod::reset(){
+
+}
+
+void Rod::draw(){
+  // glBegin(GL_TRIANGLES);
+  #ifdef _DEBUG_1
+  ttns[i].draw();
+  // ttns[2].draw();
+  // ttns[3].draw();
+  // ttns[4].draw();
+  // ttns[5].draw();
+  // ttns[0].draw();
+  #else
+  for(auto t: ttns){
+    t.draw();
+  }
+  #endif
+  // glEnd();
+}
+
+void Rod::step(float dt){
+
+}
 void Cloth::reset(){
   float w=0.1f;
   for(int i=0;i<slicex;i++)

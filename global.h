@@ -57,6 +57,71 @@ struct Constrain{
   // }
   void solve();
 };
+typedef glm::vec3 Vertex;
+struct Tetrahedron{
+  Vertex &i,&j,&k,&l;
+  // glm::mat Bm;
+  float W;
+  Tetrahedron(std::vector<Vertex> &v,int i,int j,int k,int l):i(v[i]),j(v[j]),k(v[k]),l(v[l]){}
+  Tetrahedron(Tetrahedron const &a):i(a.i),j(a.j),k(a.k),l(a.l){}
+  void precomputation();
+  void compute_elastic_forces();
+  inline void draw(){
+    static glm::vec3 color[4]={
+      glm::vec3(1.0f,1.0f,1.0f),
+      glm::vec3(1.0f,0.6f,0.6f),
+      glm::vec3(0.5f,0.5f,0.5f),
+      glm::vec3(.0f,0.0f,0.0f)
+    };
+  glBegin(GL_TRIANGLES);
+    glColor3fv((float*)&color[0]);
+    glVertex3fv((float*)&i);
+    glVertex3fv((float*)&j);
+    glVertex3fv((float*)&k);
+  glEnd();
+
+  glBegin(GL_TRIANGLES);
+    glColor3fv((float*)&color[1]);
+    glVertex3fv((float*)&j);
+    glVertex3fv((float*)&k);
+    glVertex3fv((float*)&l);
+  glEnd();
+
+  glBegin(GL_TRIANGLES);
+    glColor3fv((float*)&color[2]);
+    glVertex3fv((float*)&k);
+    glVertex3fv((float*)&l);
+    glVertex3fv((float*)&i);
+  glEnd();
+
+  glBegin(GL_TRIANGLES);
+    glColor3fv((float*)&color[3]);
+    glVertex3fv((float*)&l);
+    glVertex3fv((float*)&i);
+    glVertex3fv((float*)&j);
+  glEnd();
+  }
+};
+struct Rod{
+  float radius, length;
+  int N_diagon, N_partition;
+  std::vector<Tetrahedron> ttns;
+  std::vector<Vertex> vtxs;
+  void vertex();
+  void connectivity();
+  // Rod(float radius = 0.6f, float length = 2.0f,int N_diagon = 8,int N_partition = 4):radius(radius),N_diagon(N_diagon),N_partition(N_partition),length(length){
+  Rod(float radius = 0.1f, float length = 1.0f,int N_diagon = 8,int N_partition = 20):radius(radius),N_diagon(N_diagon),N_partition(N_partition),length(length){
+    vertex();
+    connectivity();
+    reset();
+  }
+  static const glm::vec3 color;
+  void draw();
+  void reset();
+  void step(float dt);
+  int i = 1;
+};
+
 struct Cloth{
   float x,y,kbend,kstretch;
   static const int iterations=20;
