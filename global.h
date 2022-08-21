@@ -48,24 +48,28 @@ struct Constrain{
     m.push_back(&m1);
     m.push_back(&m2);
   }
-  // Constrain(Particle &m1,Particle &m2,Particle &m3,Particle &m4,float kbend=1.0f)
-  // :k(kbend){
-  //   m.push_back(&m1);
-  //   m.push_back(&m2);
-  //   m.push_back(&m3);
-  //   m.push_back(&m4);
-  // }
   void solve();
 };
-typedef glm::vec3 Vertex;
+struct Vertex{
+  glm::vec3 pos,f;
+  Vertex(const glm::vec3 &pos):pos(pos), f(0.0){}
+  // Vertex(Vertex &a):pos(a.pos), f(a.f){}
+  Vertex():pos(0.0f), f(0.0){}
+};
 struct Tetrahedron{
   Vertex &i,&j,&k,&l;
-  // glm::mat Bm;
+  glm::mat3 Bm;
   float W;
-  Tetrahedron(std::vector<Vertex> &v,int i,int j,int k,int l):i(v[i]),j(v[j]),k(v[k]),l(v[l]){}
-  Tetrahedron(Tetrahedron const &a):i(a.i),j(a.j),k(a.k),l(a.l){}
+  Tetrahedron(std::vector<Vertex> &v,int i,int j,int k,int l):i(v[i]),j(v[j]),k(v[k]),l(v[l]){
+    precomputation();
+  }
+  Tetrahedron(const Tetrahedron &a):i(a.i),j(a.j),k(a.k),l(a.l){
+    precomputation();
+  }
+  float mu, lambda;
   void precomputation();
   void compute_elastic_forces();
+  glm::mat3 Piona_tensor(glm::mat3 &F);
   inline void draw(){
     static glm::vec3 color[4]={
       glm::vec3(1.0f,1.0f,1.0f),
@@ -102,6 +106,9 @@ struct Tetrahedron{
   glEnd();
   }
 };
+// glm::mat3 operator *(glm::mat3 A, double x){
+//   return A;
+// }
 struct Rod{
   float radius, length;
   int N_diagon, N_partition;

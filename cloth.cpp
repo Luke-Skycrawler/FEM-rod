@@ -18,10 +18,10 @@ void Rod::vertex(){
   // FIXME: resize?
   float z = length / N_partition;
   for(int i=0;i<N_partition+1;i++){
-    vtxs[i * (N_diagon +1)] = Vertex(0.f, i * z, 0.f);
+    vtxs[i * (N_diagon +1)] = Vertex(glm::vec3(0.f, i * z, 0.f));
     for(int j =0;j<N_diagon;j++){
       int I = i * (N_diagon+1) + j + 1;
-      vtxs[I] = Vertex(cos(j * M_PI * 2 / N_diagon) * radius, i * z, -sin(j * M_PI * 2 / N_diagon) * radius);
+      vtxs[I] = Vertex(glm::vec3(cos(j * M_PI * 2 / N_diagon) * radius, i * z, -sin(j * M_PI * 2 / N_diagon) * radius));
     }
   }
   #ifdef _DEBUG_0
@@ -32,7 +32,7 @@ void Rod::vertex(){
 }
 void Rod::connectivity(){
   // ttns.resize(3 * N_diagon * N_partition);
-  // FIXME: not default constructor
+  // FIXME: no default constructor
   for(int i=0;i<N_partition;i++){
     for(int j = 0;j<N_diagon;j++){
       int K = i * (N_diagon +1);
@@ -43,9 +43,6 @@ void Rod::connectivity(){
       ttns.push_back(Tetrahedron(vtxs, I, J, K, I + N_diagon + 1));
       ttns.push_back(Tetrahedron(vtxs, K, I + N_diagon + 1, J + N_diagon + 1, K + N_diagon + 1));
       ttns.push_back(Tetrahedron(vtxs, J, K, I + N_diagon + 1, J + N_diagon + 1));
-      // ttns[T]    = Tetrahedron(vtxs, I, J, K, I + N_diagon + 1);
-      // ttns[T+ 1] = Tetrahedron(vtxs, K, I + N_diagon + 1, J + N_diagon + 1, K + N_diagon + 1);
-      // ttns[T+ 2] = Tetrahedron(vtxs, J, K, I + N_diagon + 1, J + N_diagon + 1);
     }
   }
   #ifdef _DEBUG_1
@@ -61,11 +58,6 @@ void Rod::draw(){
   // glBegin(GL_TRIANGLES);
   #ifdef _DEBUG_1
   ttns[i].draw();
-  // ttns[2].draw();
-  // ttns[3].draw();
-  // ttns[4].draw();
-  // ttns[5].draw();
-  // ttns[0].draw();
   #else
   for(auto t: ttns){
     t.draw();
@@ -75,8 +67,35 @@ void Rod::draw(){
 }
 
 void Rod::step(float dt){
-
+  for(auto v: vtxs){
+    v.f = glm::vec3(0.0);
+  }
+  for(auto e: ttns){
+    e.compute_elastic_forces();
+  }
 }
+
+void Tetrahedron::precomputation(){
+  glm::mat3 Dm(i.pos-l.pos, j.pos-l.pos, k.pos-l.pos);
+  Bm = glm::inverse(Dm); 
+  W = 1.0f / 6 * glm::determinant(Dm);
+}
+void Tetrahedron::compute_elastic_forces(){
+  glm::mat3 Ds(i.pos-l.pos, j.pos-l.pos, k.pos-l.pos);
+  glm::mat3 F = Ds * Bm;
+  // glm::mat3 P = P(F);
+  glm::mat3 H = W * glm::transpose(P(Bm));
+  i.f += H[0];
+  j.f += H[1];
+  k.f += H[2];
+  l.f += -(H[0] + H[1] + H[2]);
+}
+
+
+glm::mat3 Tetrahedron::Piona_tensor(glm::mat3 &F){
+  return (F + glm::transpose(F) - glm::mat3(1.0f) * 2.0f) * mu + glm::mat3(1.0f) * lambda * (F[0][0] + F[1][1] + F[2][2] - 3.0f);
+}
+
 void Cloth::reset(){
   float w=0.1f;
   for(int i=0;i<slicex;i++)
