@@ -38,7 +38,7 @@ void Rod::connectivity(){
       int K = i * (N_diagon +1);
       int I = K + j + 1;
       int J = I +1;
-      if (j == N_diagon - 1) J = 1;
+      if (j == N_diagon - 1) J = K + 1;
       // int T = I * 3;
       ttns.push_back(Tetrahedron(vtxs, I, J, K, I + N_diagon + 1));
       ttns.push_back(Tetrahedron(vtxs, K, I + N_diagon + 1, J + N_diagon + 1, K + N_diagon + 1));
