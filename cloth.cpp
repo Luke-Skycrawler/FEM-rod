@@ -4,24 +4,25 @@
 // #define _USE_MATH_DEFINES
 // #include <cmath>
 
-// #define _DEBUG_1
+#define _DEBUG_2
 #define M_PI       3.14159265358979323846   // pi
 
 using namespace std;
 using namespace glm;
 static const glm::vec3 g(0.0f,-0.98f,0.0f);
 static float r=ball.ball.radius;
-static const float dh=0.02f,epsilon=1e-6;
+static const float dh=0.02f,epsilon=1e-6f;
 
 void Rod::vertex(){
   vtxs.resize((N_partition + 1) * (N_diagon + 1));
   // FIXME: resize?
   float z = length / N_partition;
   for(int i=0;i<N_partition+1;i++){
-    vtxs[i * (N_diagon +1)] = Vertex(glm::vec3(0.f, i * z, 0.f));
+    float M_inv = i? 1.0f:0.0f;
+    vtxs[i * (N_diagon +1)] = Vertex(glm::vec3(0.f, i * z, 0.f), M_inv);
     for(int j =0;j<N_diagon;j++){
       int I = i * (N_diagon+1) + j + 1;
-      vtxs[I] = Vertex(glm::vec3(cos(j * M_PI * 2 / N_diagon) * radius, i * z, -sin(j * M_PI * 2 / N_diagon) * radius));
+      vtxs[I] = Vertex(glm::vec3(cos(j * M_PI * 2 / N_diagon) * radius, i * z, -sin(j * M_PI * 2 / N_diagon) * radius), M_inv);
     }
   }
   #ifdef _DEBUG_0
@@ -37,9 +38,7 @@ void Rod::connectivity(){
     for(int j = 0;j<N_diagon;j++){
       int K = i * (N_diagon +1);
       int I = K + j + 1;
-      int J = I +1;
-      if (j == N_diagon - 1) J = K + 1;
-      // int T = I * 3;
+      int J = j == N_diagon - 1? K+1 : I +1;
       ttns.push_back(Tetrahedron(vtxs, I, J, K, I + N_diagon + 1));
       ttns.push_back(Tetrahedron(vtxs, K, I + N_diagon + 1, J + N_diagon + 1, K + N_diagon + 1));
       ttns.push_back(Tetrahedron(vtxs, J, K, I + N_diagon + 1, J + N_diagon + 1));
@@ -51,7 +50,8 @@ void Rod::connectivity(){
 }
 
 void Rod::reset(){
-
+  vertex();
+  connectivity();
 }
 
 void Rod::draw(){
@@ -59,7 +59,7 @@ void Rod::draw(){
   #ifdef _DEBUG_1
   ttns[i].draw();
   #else
-  for(auto t: ttns){
+  for(auto &t: ttns){
     t.draw();
   }
   #endif
@@ -67,24 +67,28 @@ void Rod::draw(){
 }
 
 void Rod::step(float dt){
-  for(auto v: vtxs){
-    v.f = glm::vec3(0.0);
+  for(auto &v: vtxs){
+    v.f = glm::vec3(gravity, 0.0f, 0.0f);
   }
-  for(auto e: ttns){
+  for(auto &e: ttns){
     e.compute_elastic_forces();
+  }
+  for(auto &v:vtxs){
+    v.pos += dt * v.v;
+    v.v += dt * v.M_inv * v.f;
   }
 }
 
 void Tetrahedron::precomputation(){
   glm::mat3 Dm(i.pos-l.pos, j.pos-l.pos, k.pos-l.pos);
   Bm = glm::inverse(Dm); 
-  W = 1.0f / 6 * glm::determinant(Dm);
+  W = abs(1.0f / 6 * glm::determinant(Dm));
 }
 void Tetrahedron::compute_elastic_forces(){
   glm::mat3 Ds(i.pos-l.pos, j.pos-l.pos, k.pos-l.pos);
   glm::mat3 F = Ds * Bm;
-  // glm::mat3 P = P(F);
-  glm::mat3 H = W * glm::transpose(P(Bm));
+  glm::mat3 P = piola_tensor(F);
+  glm::mat3 H = - W * P * glm::transpose(Bm);
   i.f += H[0];
   j.f += H[1];
   k.f += H[2];
@@ -92,8 +96,12 @@ void Tetrahedron::compute_elastic_forces(){
 }
 
 
-glm::mat3 Tetrahedron::Piona_tensor(glm::mat3 &F){
-  return (F + glm::transpose(F) - glm::mat3(1.0f) * 2.0f) * mu + glm::mat3(1.0f) * lambda * (F[0][0] + F[1][1] + F[2][2] - 3.0f);
+glm::mat3 Tetrahedron::piola_tensor(glm::mat3 &F){
+  // linear elasticity
+  // return (F + glm::transpose(F) - glm::mat3(1.0f) * 2.0f) * mu + glm::mat3(1.0f) * lambda * (F[0][0] + F[1][1] + F[2][2] - 3.0f);
+  // neo-hookean
+  auto F_inv_T = glm::transpose(glm::inverse(F));
+  return mu * (F - F_inv_T) + lambda * log(glm::determinant(F)) / 2.0f * F_inv_T;
 }
 
 void Cloth::reset(){

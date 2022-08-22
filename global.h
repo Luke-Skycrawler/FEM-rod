@@ -51,10 +51,11 @@ struct Constrain{
   void solve();
 };
 struct Vertex{
-  glm::vec3 pos,f;
-  Vertex(const glm::vec3 &pos):pos(pos), f(0.0){}
+  glm::vec3 pos,f,v;
+  Vertex(const glm::vec3 &pos, float M_inv = 1.0f):pos(pos), f(0.0f), v(0.0f), M_inv(M_inv){}
   // Vertex(Vertex &a):pos(a.pos), f(a.f){}
-  Vertex():pos(0.0f), f(0.0){}
+  Vertex():pos(0.0f), f(0.0), v(0.0f), M_inv(1.0f){}
+  float M_inv;
 };
 struct Tetrahedron{
   Vertex &i,&j,&k,&l;
@@ -66,10 +67,9 @@ struct Tetrahedron{
   Tetrahedron(const Tetrahedron &a):i(a.i),j(a.j),k(a.k),l(a.l){
     precomputation();
   }
-  float mu, lambda;
   void precomputation();
   void compute_elastic_forces();
-  glm::mat3 Piona_tensor(glm::mat3 &F);
+  glm::mat3 piola_tensor(glm::mat3 &F);
   inline void draw(){
     static glm::vec3 color[4]={
       glm::vec3(1.0f,1.0f,1.0f),
@@ -120,7 +120,7 @@ struct Rod{
   Rod(float radius = 0.1f, float length = 1.0f,int N_diagon = 8,int N_partition = 20):radius(radius),N_diagon(N_diagon),N_partition(N_partition),length(length){
     vertex();
     connectivity();
-    reset();
+    // reset();
   }
   static const glm::vec3 color;
   void draw();
@@ -179,7 +179,11 @@ struct Plane{
   }
 };
 // global variables
+static const float E = 4e4f, nu = 0.2f;  // Young's modulus and Poisson's ratio
+static const float mu = E / 2 / (1 + nu), lambda = E * nu / (1 + nu) / (1 - 2 * nu);  // Lame parameters
+static const float gravity = 4.f;
 #ifdef _MAIN
+
 #else
 extern Ball_Dynamic ball;
 extern Cloth cloth;

@@ -13,6 +13,7 @@ Rod rod;
 #define _BASE_PBD
 #ifdef _BASE_PBD
 static const vec3 g(0.0f,-0.98f,0.0f);
+static int stop = 0;
 Plane plane;
 Ball_Dynamic ball(0.3f,vec3(0.0f,1.5f,0.0f),g,0.001f);
 // Ball_Dynamic ball(0.6f,vec3(0.0f,0.0f,0.0f),vec3(0.0f),0.0f);
@@ -32,7 +33,7 @@ void display(void){
   glDepthFunc(GL_LESS); 
   glEnable(GL_COLOR_MATERIAL);
   glEnable(GL_NORMALIZE);
-  plane.draw();
+  // plane.draw();
   // ball.draw();
   // cloth.draw();
   rod.draw();
@@ -68,7 +69,7 @@ void reshape(int width, int height){
 }
 static float speeds[]={1.0f,5.0f,25.0f,125.0f};
 static float weights[]={0.002f,0.001f,0.0001f};
-static int cspeed=1,cweight=1;
+static int cspeed=3,cweight=1;
 static float SlowMotion=speeds[cspeed];
 void idle(void){
   float t = (float)glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
@@ -77,9 +78,11 @@ void idle(void){
   dt = (dt > 0.033f) ? 0.033f : dt; // keep 30fps
 
   // cloth.step(0);
-  cloth.step(dt/SlowMotion);
+  // cloth.step(dt/SlowMotion);
 
-  rod.step(dt / SlowMotion);
+  // rod.step(stop? 0.0f: dt / SlowMotion);
+  if(!stop)
+    rod.step(dt / SlowMotion);
   realtime=t;
   glutPostRedisplay();
 }
@@ -87,7 +90,8 @@ void idle(void){
 void keyboard(unsigned char key , int x , int y){
   switch(key){
     case 27: exit(0); break; // esc
-    case 'r':case 'R':cloth.reset();cloth.pin();ball.reset();break;
+    case 'r':case 'R':cloth.reset();cloth.pin();ball.reset(); rod.reset(); break;
+    case 's':case 'S':stop = !stop; break;
     case 'j':rod.i += 1; break;
     case 'k':rod.i -= 1; break;
     case ' ':cloth.pin(false);break;
