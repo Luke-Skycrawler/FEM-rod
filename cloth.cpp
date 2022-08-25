@@ -95,13 +95,36 @@ void Tetrahedron::compute_elastic_forces(){
   l.f += -(H[0] + H[1] + H[2]);
 }
 
-
+void Tetrahedron::compute_force_differentials(int _i){
+  // batch computation for f_ij for all vertices 
+  glm::mat3 Ds(i.pos-l.pos, j.pos-l.pos, k.pos-l.pos);
+  glm::mat3 F = Ds * Bm;
+  for(int j = 0; j < 3; j++){
+    glm::vec3 d_v[4];
+    d_v[_i][j] = 1.0f;
+    glm::mat3 d_Ds(d_v[0] - d_v[3], d_v[1] - d_v[3], d_v[2] - d_v[3]);
+    glm::mat3 dF = d_Ds * Bm;
+    glm::mat3 dP = differential_piola(F, dF);
+    glm::mat3 dH = - W * dP *glm::transpose(Bm);
+    df[0][_i][j] += dH[0];
+    df[1][_i][j] += dH[1];
+    df[2][_i][j] += dH[2];
+    df[3][_i][j] += -(dH[0] + dH[1] + dH[2]);
+  }
+}
 glm::mat3 Tetrahedron::piola_tensor(glm::mat3 &F){
   // linear elasticity
   // return (F + glm::transpose(F) - glm::mat3(1.0f) * 2.0f) * mu + glm::mat3(1.0f) * lambda * (F[0][0] + F[1][1] + F[2][2] - 3.0f);
   // neo-hookean
   auto F_inv_T = glm::transpose(glm::inverse(F));
   return mu * (F - F_inv_T) + lambda * log(glm::determinant(F)) / 2.0f * F_inv_T;
+}
+
+glm::mat3 Tetrahedron::differential_piola(glm::mat3 &F, glm::mat3 &dF){
+  auto F_inv_T = glm::transpose(glm::inverse(F));
+  glm::mat3 B = glm::inverse(F) * dF;
+  float tr = B[0][0] + B[1][1] + B[2][2];
+  return mu * dF + (mu - lambda * log(glm::determinant(F))) * F_inv_T * glm::transpose(dF) * F_inv_T + lambda * tr * F_inv_T;
 }
 
 void Cloth::reset(){

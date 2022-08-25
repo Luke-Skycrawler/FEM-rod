@@ -69,7 +69,10 @@ struct Tetrahedron{
   }
   void precomputation();
   void compute_elastic_forces();
+  void compute_force_differentials(int i);
   glm::mat3 piola_tensor(glm::mat3 &F);
+  glm::mat3 differential_piola(glm::mat3 &F, glm::mat3 &dF);
+  glm::vec3 df[4][4][3];
   inline void draw(){
     static glm::vec3 color[4]={
       glm::vec3(1.0f,1.0f,1.0f),
