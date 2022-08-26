@@ -105,8 +105,9 @@ void Rod::step(float dt){
 }
 
 void Rod::clean(){
-  A = SparseMatrix<float>(3*n, 3*n);
-  b = VectorXf(3 * n);
+  A.setZero();
+  b.setZero();
+  b.data();
 }
 
 void Rod::add_dx_dv(float dt){
