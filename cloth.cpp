@@ -9,18 +9,18 @@
 
 using namespace std;
 using namespace glm;
-static const glm::vec3 g(0.0f,-0.98f,0.0f);
-// static const float dh=0.02f,epsilon=1e-6f;
+static const vec3 gravity(4.0f,0.0f,0.0f);
 
 void Rod::vertex(){
   vtxs.resize((N_partition + 1) * (N_diagon + 1));
   float z = length / N_partition;
   for(int i=0;i<N_partition+1;i++){
     float M_inv = i < N_partition? 1.0f:0.0f;
-    vtxs[i * (N_diagon +1)] = Vertex(glm::vec3(0.f, i * z, 0.f), M_inv);
+    int I = i * (N_diagon +1);
+    vtxs[I] = Vertex(vec3(0.f, i * z, 0.f), M_inv);
     for(int j =0;j<N_diagon;j++){
-      int I = i * (N_diagon+1) + j + 1;
-      vtxs[I] = Vertex(glm::vec3(cos(j * M_PI * 2 / N_diagon) * radius, i * z, -sin(j * M_PI * 2 / N_diagon) * radius), M_inv);
+      int J = I + 1 + j;
+      vtxs[J] = Vertex(vec3(cos(j * M_PI * 2 / N_diagon) * radius, i * z, -sin(j * M_PI * 2 / N_diagon) * radius), M_inv);
     }
   }
   #ifdef _DEBUG_0
@@ -51,114 +51,126 @@ void Rod::reset(){
 }
 
 void Rod::draw(){
-  // glBegin(GL_TRIANGLES);
+  glBegin(GL_TRIANGLES);
   #ifdef _DEBUG_1
-  ttns[i].draw();
+  ttns[index_visible].draw();
   #else
   for(auto &t: ttns){
     t.draw();
   }
   #endif
-  // glEnd();
+  glEnd();
 }
 
-void Rod::step(float dt){
+void Rod::compute_f(){
   for(auto &v: vtxs){
-    v.f = glm::vec3(gravity, 0.0f, 0.0f);
+    v.f = gravity;
   }
   for(auto &e: ttns){
     e.compute_elastic_forces();
   }
-  for(auto &v:vtxs){
-    v.pos += dt * v.v;
-    v.v += dt * v.M_inv * v.f;
-  }
-  // implicit
-  if (implicit){
-    build_sparse();
-    for(int i=0;i<n / 3;i++){
-      auto &vtx = vtxs[i];
-      auto dv = vtx.v_old - vtx.v;
-      for(int k=0;k<3;k++){
-        b.coeffRef(i * 3 + k) = 1.0f / dt * dv[k] + vtx.f[k];
-        // b[i * 3 + k] = 1.0f / dt * dv[k] + vtx.f[k];
-      }
-    }
-    solve();
-    add_dx(dt);
-    derive_and_add_dv();
-    for(int iters =0;iters < 20; iters++){
-      // newton
-    }
-    for(auto &v:vtxs){
-      v.v_old = v.v;
-    }
-  }
 }
 
-void Rod::add_dx(float dt){
-  for(int i=0;i<n / 3;i++){
-    glm::vec3 tmp(
-      x.coeff(i+0), 
-      x.coeff(i+1), 
-      x.coeff(i+2)
+void Rod::step(float dt){
+  // explicit, or used as initial guess for newton iteration
+  compute_f();
+  for(auto &v:vtxs){
+    v.x += dt * v.v;
+    v.v += dt * v.M_inv * v.f;
+  }
+  #ifdef IMPLICIT
+  for(int k=0;k < 2; k++){
+    // FIXME: specify a tolerance and max iteration count
+    // newton method
+
+    build_sparse(dt);
+
+    compute_f();    
+    for(int i=0;i<n;i++){
+      auto &vtx = vtxs[i];
+      auto dv = vtx.v_n - vtx.v;
+      for(int d=0;d<3;d++){
+        b.coeffRef(i * 3 + d) = 1.0f / dt * dv[d] + vtx.f[d];
+      }
+    }
+
+    solve();
+    add_dx_dv(dt);
+  }
+  for(auto &v:vtxs){
+    v.v_n = v.v;
+  }
+  clean();
+  #endif
+}
+
+void Rod::clean(){
+  A = SparseMatrix<float>(3*n, 3*n);
+  b = VectorXf(3 * n);
+}
+
+void Rod::add_dx_dv(float dt){
+  for(int i=0;i<n;i++){
+    int I = 3 * i;
+    vec3 tmp(
+      x.coeff(I+0), 
+      x.coeff(I+1), 
+      x.coeff(I+2)
     );
-    vtxs[i].pos += tmp;
+    vtxs[i].x += tmp;
     vtxs[i].v += tmp/dt;
   }
 }
 
-void Rod::derive_and_add_dv(){
-  // 
-}
-
-void Rod::build_sparse(){
+void Rod::build_sparse(float dt){
   for(auto &e: ttns){
     for(int j=0; j < 4; j++){
       e.compute_force_differentials(j,A, vtxs);
-      // FIXME: no use setting the matrix at the pinned points 
     }
   }
-  for(int i=0;i<n;i++){
-    // K_ii += 1 for mass matrix
-    A.coeffRef(i,i) += 1.0f;
+  for(int i=0;i<3 * n;i++){
+    // K_ii += M/dt^2 
+    A.coeffRef(i,i) += 1.0f / (dt * dt);
   }
 }
 
 void Tetrahedron::precomputation(){
-  glm::mat3 Dm(i.pos-l.pos, j.pos-l.pos, k.pos-l.pos);
-  Bm = glm::inverse(Dm); 
-  W = abs(1.0f / 6 * glm::determinant(Dm));
+  mat3 Dm(i.x-l.x, j.x-l.x, k.x-l.x);
+  Bm = inverse(Dm); 
+  W = abs(1.0f / 6 * determinant(Dm));
 }
+
 void Tetrahedron::compute_elastic_forces(){
-  glm::mat3 Ds(i.pos-l.pos, j.pos-l.pos, k.pos-l.pos);
-  glm::mat3 F = Ds * Bm;
-  glm::mat3 P = piola_tensor(F);
-  glm::mat3 H = - W * P * glm::transpose(Bm);
+  mat3 Ds(i.x-l.x, j.x-l.x, k.x-l.x);
+  mat3 F = Ds * Bm;
+  mat3 P = piola_tensor(F);
+  mat3 H = - W * P * transpose(Bm);
+  // NOTE: glm matrix is colum-major, i.e. H[i][j] gets element h_ji
   i.f += H[0];
   j.f += H[1];
   k.f += H[2];
   l.f += -(H[0] + H[1] + H[2]);
 }
 
-inline void put(SparseMatrix<float> &K, int i, int col, glm::vec3 &df){
+inline void put(SparseMatrix<float> &K, int i, int col, vec3 &df){
   for(int k=0;k<3;k++){
     int row = 3* i + k;
-    K.insert(row, col) = df[k];
+    // K.insert(row, col) = df[k];
+    K.coeffRef(row, col) += df[k];
   }
 }
-void Tetrahedron::compute_force_differentials(int _j,  SparseMatrix<float> &K, std::vector<Vertex> &v){
+void Tetrahedron::compute_force_differentials(int _j,  SparseMatrix<float> &K, vector<Vertex> &v){
   // batch computation parital f_i for all v_i adjacent to v_j (in this tet) 
-  glm::mat3 Ds(i.pos-l.pos, j.pos-l.pos, k.pos-l.pos);
-  glm::mat3 F = Ds * Bm;
+  mat3 Ds(i.x-l.x, j.x-l.x, k.x-l.x);
+  mat3 F = Ds * Bm;
   for(int k = 0; k < 3; k++){
     // like ti.static
-    glm::vec3 d_v[4];
+    vec3 d_v[4];
     d_v[_j][k] = 1.0f;
-    glm::mat3 d_Ds(d_v[0] - d_v[3], d_v[1] - d_v[3], d_v[2] - d_v[3]);
-    glm::mat3 dF = d_Ds * Bm;
-    glm::mat3 dP = differential_piola(F, dF);
-    glm::mat3 dH = - W * dP *glm::transpose(Bm);
+    mat3 d_Ds(d_v[0] - d_v[3], d_v[1] - d_v[3], d_v[2] - d_v[3]);
+    mat3 dF = d_Ds * Bm;
+    mat3 dP = differential_piola(F, dF);
+    mat3 dH = - W * dP *transpose(Bm);
     df[0] = dH[0];
     df[1] = dH[1];
     df[2] = dH[2];
@@ -169,27 +181,27 @@ void Tetrahedron::compute_force_differentials(int _j,  SparseMatrix<float> &K, s
     col = 3j + k
     */
    int J = index[_j];
-   if(v[J].M_inv == 0) return;
+   if(v[J].M_inv == 0.0f) return;
    int col = 3 * J + k;
    for(int _i=0;_i<4; _i ++){
-    int i = index[_i];
-    if(v[i].M_inv == 0) continue;
-    put(K, i , col, df[_i]);
+    int I = index[_i];
+    if(v[I].M_inv == 0) continue;
+    put(K, I , col, df[_i]);
    }
   }
 }
-glm::mat3 Tetrahedron::piola_tensor(glm::mat3 &F){
+mat3 Tetrahedron::piola_tensor(mat3 &F){
   // linear elasticity
-  // return (F + glm::transpose(F) - glm::mat3(1.0f) * 2.0f) * mu + glm::mat3(1.0f) * lambda * (F[0][0] + F[1][1] + F[2][2] - 3.0f);
+  // return (F + transpose(F) - mat3(1.0f) * 2.0f) * mu + mat3(1.0f) * lambda * (F[0][0] + F[1][1] + F[2][2] - 3.0f);
   // neo-hookean
-  auto Fjnv_T = glm::transpose(glm::inverse(F));
-  return mu * (F - Fjnv_T) + lambda * log(glm::determinant(F)) / 2.0f * Fjnv_T;
+  auto F_inv_T = transpose(inverse(F));
+  return mu * (F - F_inv_T) + lambda * log(determinant(F)) / 2.0f * F_inv_T;
 }
 
-glm::mat3 Tetrahedron::differential_piola(glm::mat3 &F, glm::mat3 &dF){
-  auto Fjnv_T = glm::transpose(glm::inverse(F));
-  glm::mat3 B = glm::inverse(F) * dF;
+mat3 Tetrahedron::differential_piola(mat3 &F, mat3 &dF){
+  auto F_inv_T = transpose(inverse(F));
+  mat3 B = inverse(F) * dF;
   float tr = B[0][0] + B[1][1] + B[2][2];
-  return mu * dF + (mu - lambda * log(glm::determinant(F))) * Fjnv_T * glm::transpose(dF) * Fjnv_T + lambda * tr * Fjnv_T;
+  return mu * dF + (mu - lambda * log(determinant(F))) * F_inv_T * transpose(dF) * F_inv_T + lambda * tr * F_inv_T;
 }
 

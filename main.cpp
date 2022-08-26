@@ -9,7 +9,7 @@
 #include "global.h"
 using namespace glm;
 using namespace std;
-Rod rod;
+Rod *rod;
 #define _BASE_PBD
 #ifdef _BASE_PBD
 static const vec3 g(0.0f,-0.98f,0.0f);
@@ -31,7 +31,7 @@ void display(void){
   glEnable(GL_COLOR_MATERIAL);
   glEnable(GL_NORMALIZE);
   // plane.draw();
-  rod.draw();
+  rod->draw();
 
   glutSwapBuffers();
 }
@@ -75,9 +75,9 @@ void idle(void){
   // cloth.step(0);
   // cloth.step(dt/SlowMotion);
 
-  // rod.step(stop? 0.0f: dt / SlowMotion);
+  // rod->step(stop? 0.0f: dt / SlowMotion);
   if(!stop)
-    rod.step(dt / SlowMotion);
+    rod->step(dt / SlowMotion);
   realtime=t;
   glutPostRedisplay();
 }
@@ -85,10 +85,10 @@ void idle(void){
 void keyboard(unsigned char key , int x , int y){
   switch(key){
     case 27: exit(0); break; // esc
-    case 'r':case 'R':rod.reset(); break;
+    case 'r':case 'R':rod->reset(); break;
     case 's':case 'S':stop = !stop; break;
-    case 'j':rod.i += 1; break;
-    case 'k':rod.i -= 1; break;
+    case 'j':rod->index_visible += 1; break;
+    case 'k':rod->index_visible -= 1; break;
     case ' ':break;
   }
 }
@@ -118,6 +118,9 @@ void special(int key, int x, int y){
 
 
 int main(int argc, char* argv[]) {
+  int nd, np;
+  cin>>nd>>np;
+  rod = new Rod(0.1f,1.0f, nd, np);
   glutInit(&argc, argv);
   glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE);
   glutInitWindowSize(800  , 600);
@@ -162,7 +165,7 @@ void renderScene(void)
 
 	glColor3f(1.0, 1.0, 1.0);
 	// glutSolidTeapot(0.5f);
-  rod.draw();
+  rod->draw();
 	// glutSolidSphere(0.5,20,20);
 	glutSwapBuffers();                                      //交换两个缓冲区指针
 }
