@@ -15,9 +15,6 @@ Rod rod;
 static const vec3 g(0.0f,-0.98f,0.0f);
 static int stop = 0;
 Plane plane;
-Ball_Dynamic ball(0.3f,vec3(0.0f,1.5f,0.0f),g,0.001f);
-// Ball_Dynamic ball(0.6f,vec3(0.0f,0.0f,0.0f),vec3(0.0f),0.0f);
-Cloth cloth(2.0f,2.0f,50,50,1.0f,0.0f,true);
 float realtime;
 void init(int argc, char* argv[]){
   glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
@@ -34,8 +31,6 @@ void display(void){
   glEnable(GL_COLOR_MATERIAL);
   glEnable(GL_NORMALIZE);
   // plane.draw();
-  // ball.draw();
-  // cloth.draw();
   rod.draw();
 
   glutSwapBuffers();
@@ -90,11 +85,11 @@ void idle(void){
 void keyboard(unsigned char key , int x , int y){
   switch(key){
     case 27: exit(0); break; // esc
-    case 'r':case 'R':cloth.reset();cloth.pin();ball.reset(); rod.reset(); break;
+    case 'r':case 'R':rod.reset(); break;
     case 's':case 'S':stop = !stop; break;
     case 'j':rod.i += 1; break;
     case 'k':rod.i -= 1; break;
-    case ' ':cloth.pin(false);break;
+    case ' ':break;
   }
 }
 void special(int key, int x, int y){
@@ -110,17 +105,15 @@ void special(int key, int x, int y){
     SlowMotion=speeds[cspeed];
     cout<<"Slow Motion: "<<SlowMotion<<endl;
   }
-  if (key == GLUT_KEY_LEFT) {
-    if(cweight)cweight--;
-    else cweight=2;
-    ball.w=weights[cweight];
-    cout<<"mass: "<<1.0f/ball.w<<endl;
-  }
-  if (key == GLUT_KEY_RIGHT) {
-    cweight=(cweight+1)%3;
-    ball.w=weights[cweight];
-    cout<<"mass: "<<1.0f/ball.w<<endl;
-  }
+  // if (key == GLUT_KEY_LEFT) {
+  //   if(cweight)cweight--;
+  //   else cweight=2;
+  //   // cout<<"mass: "<<1.0f/ball.w<<endl;
+  // }
+  // if (key == GLUT_KEY_RIGHT) {
+  //   cweight=(cweight+1)%3;
+  //   // cout<<"mass: "<<1.0f/ball.w<<endl;
+  // }
 }
 
 

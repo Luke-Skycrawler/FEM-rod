@@ -4,57 +4,8 @@
 #include <GL/glut.h>
 #include <vector>
 using namespace Eigen;
-struct Ball{
-  float radius;
-  Ball(float radius=0.6f):radius(radius){}
-  static const glm::vec3 color;
-  void draw(glm::vec3 pos=glm::vec3(0.0f)){
-    glColor3fv((float*)&color);
-    glutSolidSphere(radius,30,30);
-  }
-};
-struct Particle{
-  float w;    // 1/mass
-  glm::vec3 pos,acc,v,tmp;
-  // bool v_updated;
-  Particle(glm::vec3 pos,glm::vec3 gravity,float w)
-  :w(w),v(0.0f),pos(pos),acc(gravity){}
-  Particle():w(w),v(0.0f),pos(0.0f),acc(0.0f){}
-  bool collision[2];
-  // FIXME: only for convenience, attributed to Constrain
-  void prelaunch(){collision[0]=collision[1]=false;}
-};
-
-struct Ball_Dynamic : Particle{
-  Ball ball;
-  const glm::vec3 pos_init;
-  Ball_Dynamic(float radius,glm::vec3 pos,glm::vec3 acc,float w)
-  :ball(radius),Particle(pos,acc,w),pos_init(pos){
-    
-  }
-  void draw();
-  void reset(){
-    pos=pos_init;
-    v=glm::vec3(0.0f);
-  }
-};
-struct Constrain{
-  std::vector<Particle*> m;
-  Particle * ext_obj;
-  float k,len_slack;
-  Constrain(Particle &m1,Particle *ext_obj=NULL):ext_obj(ext_obj){
-    // collision constrain with external object
-    m.push_back(&m1);
-  }
-  Constrain(Particle &m1,Particle &m2,float k)
-  :k(k),len_slack(glm::length(m1.pos-m2.pos)),ext_obj(NULL){
-    m.push_back(&m1);
-    m.push_back(&m2);
-  }
-  void solve();
-};
 struct Vertex{
-  glm::vec3 pos,f,v;
+  glm::vec3 pos,f,v,v_old;
   Vertex(const glm::vec3 &pos, float M_inv = 1.0f):pos(pos), f(0.0f), v(0.0f), M_inv(M_inv){}
   // Vertex(Vertex &a):pos(a.pos), f(a.f){}
   Vertex():pos(0.0f), f(0.0), v(0.0f), M_inv(1.0f){}
@@ -130,8 +81,10 @@ struct Rod{
   std::vector<Vertex> vtxs;
   void vertex();
   void connectivity();
+  void add_dx(float dt);
+  void derive_and_add_dv();
   // Rod(float radius = 0.6f, float length = 2.0f,int N_diagon = 8,int N_partition = 4):radius(radius),N_diagon(N_diagon),N_partition(N_partition),length(length){
-  Rod(float radius = 0.1f, float length = 1.0f,int N_diagon = 8,int N_partition = 20):radius(radius),N_diagon(N_diagon),N_partition(N_partition),length(length),n(N_partition*(N_diagon + 1)),x(n),b(n){
+  Rod(float radius = 0.1f, float length = 1.0f,int N_diagon = 8,int N_partition = 20):radius(radius),N_diagon(N_diagon),N_partition(N_partition),length(length),n(N_partition*(N_diagon + 1) * 3),x(n),b(n){
     vertex();
     connectivity();
     // reset();
@@ -142,6 +95,7 @@ struct Rod{
   SparseLU<SparseMatrix<float>, COLAMDOrdering<int> >   solver;
 
   void build_sparse();
+  static const int implicit = 0;
   // fill A and b;
   void solve(){
     // Compute the ordering permutation vector from the structural pattern of A
@@ -156,42 +110,6 @@ struct Rod{
   void reset();
   void step(float dt);
   int i = 1;
-};
-
-struct Cloth{
-  float x,y,kbend,kstretch;
-  static const int iterations=20;
-  int slicex,slicey,gerneric_constrains_cnt;
-
-  std::vector<Constrain> constrains,collisions;
-  std::vector<Particle> particles;
-  
-  Cloth(float x,float y,int slicex,int slicey,float kstretch=1.0f,float kbend=0.0f,bool pinned=false):
-  x(x),y(y),slicex(slicex),slicey(slicey),kstretch(kstretch),kbend(kbend){
-    particles.resize(slicex*slicey);
-    reset();
-    if(pinned)pin();
-    gen();
-  }
-  void pin(bool _pin=true);
-  void gen();
-  void reset();
-  void draw();
-  void step(float dt);
-  private:
-  inline void DrawTriangle(Particle &p1,Particle &p2,Particle &p3,int cid){
-    static glm::vec3 color[2]={
-      glm::vec3(1.0f,1.0f,1.0f),
-      glm::vec3(1.0f,0.6f,0.6f)
-    };
-    glColor3fv((float*)&color[cid]);
-    glVertex3fv((float*)&p1.pos);
-    glVertex3fv((float*)&p2.pos);
-    glVertex3fv((float*)&p3.pos);
-  }
-  inline Particle &GetParticle(int i,int j){
-    return particles[i*slicey+j];
-  }
 };
 
 struct Plane{
@@ -211,9 +129,9 @@ struct Plane{
 static const float E = 4e4f, nu = 0.2f;  // Young's modulus and Poisson's ratio
 static const float mu = E / 2 / (1 + nu), lambda = E * nu / (1 + nu) / (1 - 2 * nu);  // Lame parameters
 static const float gravity = 4.f;
-#ifdef _MAIN
+// #ifdef _MAIN
 
-#else
-extern Ball_Dynamic ball;
-extern Cloth cloth;
-#endif
+// #else
+// extern Ball_Dynamic ball;
+// extern Cloth cloth;
+// #endif
