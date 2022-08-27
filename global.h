@@ -55,7 +55,7 @@ struct Tetrahedron
         glm::vec3(1.0f, 0.6f, 0.6f),
         glm::vec3(0.5f, 0.5f, 0.5f),
         glm::vec3(.0f, 0.0f, 0.0f)};
-        
+
     glColor3fv((float *)&color[0]);
     glVertex3fv((float *)&i);
     glVertex3fv((float *)&j);
