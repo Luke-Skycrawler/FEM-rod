@@ -5,6 +5,7 @@
 #include <vector>
 #include <iostream>
 #define IMPLICIT
+#define RESIDUE
 using namespace Eigen;
 struct Vertex
 {
@@ -20,7 +21,6 @@ struct Tetrahedron
   glm::mat3 Bm;
   glm::mat3 piola_tensor(glm::mat3 &F);
   glm::mat3 differential_piola(glm::mat3 &F, glm::mat3 &dF);
-  glm::vec3 df[4];
   int index[4];
   float W;
 
@@ -56,10 +56,10 @@ struct Tetrahedron
         glm::vec3(0.5f, 0.5f, 0.5f),
         glm::vec3(.0f, 0.0f, 0.0f)};
 
-    glColor3fv((float *)&color[0]);
-    glVertex3fv((float *)&i);
-    glVertex3fv((float *)&j);
-    glVertex3fv((float *)&k);
+    // glColor3fv((float *)&color[0]);
+    // glVertex3fv((float *)&i);
+    // glVertex3fv((float *)&j);
+    // glVertex3fv((float *)&k);
 
     glColor3fv((float *)&color[1]);
     glVertex3fv((float *)&j);
@@ -71,10 +71,10 @@ struct Tetrahedron
     glVertex3fv((float *)&l);
     glVertex3fv((float *)&i);
 
-    glColor3fv((float *)&color[3]);
-    glVertex3fv((float *)&l);
-    glVertex3fv((float *)&i);
-    glVertex3fv((float *)&j);
+    // glColor3fv((float *)&color[3]);
+    // glVertex3fv((float *)&l);
+    // glVertex3fv((float *)&i);
+    // glVertex3fv((float *)&j);
   }
 };
 struct Rod
@@ -90,7 +90,7 @@ struct Rod
   SparseLU<SparseMatrix<float>, COLAMDOrdering<int>> solver;
 
   // Rod(float radius = 0.6f, float length = 2.0f,int N_diagon = 8,int N_partition = 4):radius(radius),N_diagon(N_diagon),N_partition(N_partition),length(length){
-  Rod(float radius = 0.1f, float length = 1.0f, int N_diagon = 8, int N_partition = 20) : radius(radius), N_diagon(N_diagon), N_partition(N_partition), length(length), n(N_partition * (N_diagon + 1)), x(3 * n), b(3 * n), A(3 * n, 3 * n)
+  Rod(float radius = 0.1f, float length = 1.0f, int _N_diagon = 8, int _N_partition = 20) : radius(radius), N_diagon(_N_diagon), N_partition(_N_partition), length(length), n(_N_partition * (_N_diagon + 1)), x(3 * n), b(3 * n), A(3 * n, 3 * n)
   {
     vertex();
     connectivity();

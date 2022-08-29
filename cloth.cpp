@@ -4,7 +4,7 @@
 // #define _USE_MATH_DEFINES
 // #include <cmath>
 
-#define _DEBUG_2
+// #define _DEBUG_1
 #define M_PI 3.14159265358979323846 // pi
 
 using namespace std;
@@ -39,12 +39,16 @@ void Rod::connectivity()
   {
     for (int j = 0; j < N_diagon; j++)
     {
-      int K = i * (N_diagon + 1);
+      int H = N_diagon + 1;
+      int K = i * H;
       int I = K + j + 1;
       int J = j == N_diagon - 1 ? K + 1 : I + 1;
-      ttns.push_back(Tetrahedron(vtxs, I, J, K, I + N_diagon + 1));
-      ttns.push_back(Tetrahedron(vtxs, K, I + N_diagon + 1, J + N_diagon + 1, K + N_diagon + 1));
-      ttns.push_back(Tetrahedron(vtxs, J, K, I + N_diagon + 1, J + N_diagon + 1));
+      ttns.push_back(Tetrahedron(vtxs, I, J, K, I+ H));
+      ttns.push_back(Tetrahedron(vtxs, I + H, K, K+H, J));
+      ttns.push_back(Tetrahedron(vtxs, J, I+H, J+H, K+H));
+      // ttns.push_back(Tetrahedron(vtxs, I, J, K, I + N_diagon + 1));
+      // ttns.push_back(Tetrahedron(vtxs, K, I + N_diagon + 1, J + N_diagon + 1, K + N_diagon + 1));
+      // ttns.push_back(Tetrahedron(vtxs, J, K, I + N_diagon + 1, J + N_diagon + 1));
     }
   }
 #ifdef _DEBUG_1
@@ -94,7 +98,7 @@ void Rod::step(float dt)
     v.v += dt * v.M_inv * v.f;
   }
 #ifdef IMPLICIT
-  for (int k = 0; k < 20; k++)
+  for (int k = 0; k < 2; k++)
   {
     // FIXME: specify a tolerance and max iteration count
     // newton method
@@ -105,14 +109,31 @@ void Rod::step(float dt)
     for (int i = 0; i < n; i++)
     {
       auto &vtx = vtxs[i];
-      auto dv = vtx.v_n - vtx.v;
+      vec3 dv = vtx.v_n - vtx.v;
       for (int d = 0; d < 3; d++)
       {
         b.coeffRef(i * 3 + d) = 1.0f / dt * dv[d] + vtx.f[d];
       }
     }
+    #ifdef RESIDUE
+    float sum = 0.0f, tot = 0.0f, x_norm = 0.0f;
+    for (auto &v:vtxs){
+      vec3 rhs = v.v_n + dt * v.f;
+      vec3 r = rhs - v.v;
+      tot += dot(rhs ,rhs);
+      sum += dot(r , r);
+      x_norm += dot(v.x, v.x);
+    }
+    cout<< "iter" << k << ", error = "<<sqrt(sum/ tot) << endl;
+    cout<< "tot = "<<sqrt(tot) << endl;
+    #endif
 
     solve();
+    #ifdef RESIDUE
+    cout<< "norm: "<< x.norm() << endl;
+    cout<< "b norm: "<< b.norm() << endl;
+
+    #endif
     add_dx_dv(dt);
   }
   for (auto &v : vtxs)
@@ -127,7 +148,7 @@ void Rod::clean()
 {
   A.setZero();
   b.setZero();
-  b.data();
+  // b.data();
 }
 
 void Rod::add_dx_dv(float dt)
@@ -146,6 +167,7 @@ void Rod::add_dx_dv(float dt)
 
 void Rod::build_sparse(float dt)
 {
+  A.setZero();
   for (auto &e : ttns)
   {
     for (int j = 0; j < 4; j++)
@@ -158,6 +180,9 @@ void Rod::build_sparse(float dt)
     // K_ii += M/dt^2
     A.coeffRef(i, i) += 1.0f / (dt * dt);
   }
+  #ifdef RESIDUE
+  cout<<"dt ^-2: " << 1.0f / dt / dt << endl;
+  #endif
 }
 
 void Tetrahedron::precomputation()
@@ -194,15 +219,21 @@ void Tetrahedron::compute_force_differentials(int _j, SparseMatrix<float> &K, ve
   // batch computation parital f_i for all v_i adjacent to v_j (in this tet)
   mat3 Ds(i.x - l.x, j.x - l.x, k.x - l.x);
   mat3 F = Ds * Bm;
+  int J = index[_j];
+  if (v[J].M_inv == 0.0f)
+    return;
+  #ifdef RESIDUE
+  float tmp  = 0.0f, t2 = 0.0f;
+  #endif
   for (int k = 0; k < 3; k++)
   {
     // like ti.static
-    vec3 d_v[4];
-    d_v[_j][k] = 1.0f;
+    vec3 d_v[4] = {vec3(0.0f),vec3(0.0f),vec3(0.0f),vec3(0.0f)}, df[4] = {vec3(0.0f),vec3(0.0f),vec3(0.0f),vec3(0.0f)};
+    d_v[_j][k] = -1.0f;
     mat3 d_Ds(d_v[0] - d_v[3], d_v[1] - d_v[3], d_v[2] - d_v[3]);
-    mat3 dF = d_Ds * Bm;
-    mat3 dP = differential_piola(F, dF);
-    mat3 dH = -W * dP * transpose(Bm);
+    mat3 dF(d_Ds * Bm);
+    mat3 dP(differential_piola(F, dF));
+    mat3 dH(-W * dP * transpose(Bm));
     df[0] = dH[0];
     df[1] = dH[1];
     df[2] = dH[2];
@@ -212,18 +243,21 @@ void Tetrahedron::compute_force_differentials(int _j, SparseMatrix<float> &K, ve
     row = [3i, 3i+2]
     col = 3j + k
     */
-    int J = index[_j];
-    if (v[J].M_inv == 0.0f)
-      return;
     int col = 3 * J + k;
     for (int _i = 0; _i < 4; _i++)
     {
       int I = index[_i];
-      if (v[I].M_inv == 0)
+      if (v[I].M_inv == 0.0f)
         continue;
       put(K, I, col, df[_i]);
+      #ifdef RESIDUE
+      tmp += dot(df[_i], df[_i]);
+      #endif
     }
   }
+    #ifdef RESIDUE
+    // cout<< sqrt(tmp) << endl;
+    #endif
 }
 mat3 Tetrahedron::piola_tensor(mat3 &F)
 {
