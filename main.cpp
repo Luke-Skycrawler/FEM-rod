@@ -12,7 +12,6 @@ using namespace std;
 Rod *rod;
 #define _BASE_PBD
 #ifdef _BASE_PBD
-static const vec3 g(0.0f,-0.98f,0.0f);
 static int stop = 0;
 Plane plane;
 float realtime;
@@ -62,7 +61,7 @@ void reshape(int width, int height){
   glLightfv(GL_LIGHT0, GL_AMBIENT,  lightAmbient);
   glLightfv(GL_LIGHT0, GL_SPECULAR, lightSpecular);
 }
-static float speeds[]={1.0f,5.0f,25.0f,125.0f};
+static float speeds[]={0.2f, 1.0f,5.0f,25.0f};
 static float weights[]={0.002f,0.001f,0.0001f};
 static int cspeed=0,cweight=1;
 static float SlowMotion=speeds[cspeed];

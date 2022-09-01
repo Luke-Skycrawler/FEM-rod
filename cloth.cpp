@@ -9,7 +9,7 @@
 
 using namespace std;
 using namespace glm;
-static const vec3 gravity(4.0f, 0.0f, 0.0f);
+static const vec3 gravity(4.f, 0.0f, 0.0f);
 
 void Rod::vertex()
 {

@@ -56,25 +56,25 @@ struct Tetrahedron
         glm::vec3(0.5f, 0.5f, 0.5f),
         glm::vec3(.0f, 0.0f, 0.0f)};
 
-    // glColor3fv((float *)&color[0]);
-    // glVertex3fv((float *)&i);
-    // glVertex3fv((float *)&j);
-    // glVertex3fv((float *)&k);
-
     glColor3fv((float *)&color[1]);
+    glVertex3fv((float *)&i);
     glVertex3fv((float *)&j);
     glVertex3fv((float *)&k);
-    glVertex3fv((float *)&l);
 
-    glColor3fv((float *)&color[2]);
-    glVertex3fv((float *)&k);
-    glVertex3fv((float *)&l);
-    glVertex3fv((float *)&i);
+    // glColor3fv((float *)&color[1]);
+    // glVertex3fv((float *)&j);
+    // glVertex3fv((float *)&k);
+    // glVertex3fv((float *)&l);
 
-    // glColor3fv((float *)&color[3]);
+    // glColor3fv((float *)&color[2]);
+    // glVertex3fv((float *)&k);
     // glVertex3fv((float *)&l);
     // glVertex3fv((float *)&i);
-    // glVertex3fv((float *)&j);
+
+    glColor3fv((float *)&color[2]);
+    glVertex3fv((float *)&l);
+    glVertex3fv((float *)&i);
+    glVertex3fv((float *)&j);
   }
 };
 struct Rod
