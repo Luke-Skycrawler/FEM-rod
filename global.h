@@ -5,7 +5,7 @@
 #include <vector>
 #include <iostream>
 #define IMPLICIT
-#define RESIDUE
+// #define RESIDUE
 using namespace Eigen;
 struct Vertex
 {

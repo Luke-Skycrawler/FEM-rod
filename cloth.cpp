@@ -90,14 +90,15 @@ void Rod::compute_f()
 
 void Rod::step(float dt)
 {
-  // explicit, or used as initial guess for newton iteration
+#ifndef IMPLICIT
+  explicit, or used as initial guess for newton iteration
   compute_f();
   for (auto &v : vtxs)
   {
     v.x += dt * v.v;
     v.v += dt * v.M_inv * v.f;
   }
-#ifdef IMPLICIT
+#else
   for (int k = 0; k < 2; k++)
   {
     // FIXME: specify a tolerance and max iteration count
@@ -112,7 +113,7 @@ void Rod::step(float dt)
       vec3 dv = vtx.v_n - vtx.v;
       for (int d = 0; d < 3; d++)
       {
-        b.coeffRef(i * 3 + d) = 1.0f / dt * dv[d] + vtx.f[d];
+        b.coeffRef(i * 3 + d) = (1.0f / dt) * dv[d] + vtx.f[d];
       }
     }
     #ifdef RESIDUE

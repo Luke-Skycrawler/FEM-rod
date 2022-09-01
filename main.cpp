@@ -64,7 +64,7 @@ void reshape(int width, int height){
 }
 static float speeds[]={1.0f,5.0f,25.0f,125.0f};
 static float weights[]={0.002f,0.001f,0.0001f};
-static int cspeed=1,cweight=1;
+static int cspeed=0,cweight=1;
 static float SlowMotion=speeds[cspeed];
 void idle(void){
   float t = (float)glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
