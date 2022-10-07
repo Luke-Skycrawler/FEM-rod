@@ -1,6 +1,8 @@
 #include "global.h"
 #include <GL/glut.h>
+#include <corecrt_math.h>
 #include <iostream>
+#include <assert.h>
 // #define _USE_MATH_DEFINES
 // #include <cmath>
 
@@ -85,6 +87,7 @@ void Rod::compute_f()
   for (auto &e : ttns)
   {
     e.compute_elastic_forces();
+    // e.compute_barrier_forces(vtxs);
   }
 }
 
@@ -206,6 +209,33 @@ void Tetrahedron::compute_elastic_forces()
   l.f += -(H[0] + H[1] + H[2]);
 }
 
+static const float d_hat = 0.08, r_boundary = 0.6, kappa = 1000.0f;
+inline float barrier_second_dirivative(float x){
+  // absolute value
+  return kappa * ((x - d_hat) * (d_hat / (x * x) + 3 / x) + 2 * log(x / d_hat)); 
+}
+
+inline vec3 barrier_gradient(float x){
+  // returns the absolute value of the gradient
+  return kappa * (vec3((x - d_hat) * ((x-d_hat)/x + 2 * log(x / d_hat)), 0.0f, 0.0f));
+}
+inline void barrier(SparseMatrix<float> &K, int i, float df){
+  int I = 3 * i;
+  K.coeffRef(I, I) += df;
+}
+
+void Tetrahedron::compute_barrier_forces(vector<Vertex> &vtxs) {
+  for (int i = 0; i< 3; i++) {
+    int I = index[i];
+    auto v = vtxs[I];
+    float d = r_boundary - v.x[0];
+    if (d < d_hat) {
+      assert(d > 0);
+      v.f -= barrier_gradient(d);
+    }
+  }
+}
+
 inline void put(SparseMatrix<float> &K, int i, int col, vec3 &df)
 {
   for (int k = 0; k < 3; k++)
@@ -215,6 +245,7 @@ inline void put(SparseMatrix<float> &K, int i, int col, vec3 &df)
     K.coeffRef(row, col) += df[k];
   }
 }
+
 void Tetrahedron::compute_force_differentials(int _j, SparseMatrix<float> &K, vector<Vertex> &v)
 {
   // batch computation parital f_i for all v_i adjacent to v_j (in this tet)
@@ -254,6 +285,11 @@ void Tetrahedron::compute_force_differentials(int _j, SparseMatrix<float> &K, ve
       #ifdef RESIDUE
       tmp += dot(df[_i], df[_i]);
       #endif
+    }
+    float d = r_boundary - v[J].x[0];
+    if (d < d_hat){
+      assert(d > 0);
+      barrier(K, J, - barrier_second_dirivative(d));
     }
   }
     #ifdef RESIDUE

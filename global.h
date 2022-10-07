@@ -47,6 +47,7 @@ struct Tetrahedron
   void precomputation();
 
   void compute_elastic_forces();
+  void compute_barrier_forces(std::vector<Vertex> &v);
   void compute_force_differentials(int j, SparseMatrix<float> &K, std::vector<Vertex> &v);
   inline void draw()
   {
